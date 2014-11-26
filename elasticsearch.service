@@ -1,0 +1,10 @@
+[Unit]
+Description=Elasticsearch
+
+[Service]
+Type=simple
+ExecStart=/opt/elasticsearch/bin/elasticsearch
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
