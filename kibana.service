@@ -1,0 +1,10 @@
+[Unit]
+Description=Kibana
+Wants=elasticsearch.service
+
+[Service]
+Type=simple
+ExecStart=/opt/logstash/bin/logstash-web
+
+[Install]
+WantedBy=multi-user.target
