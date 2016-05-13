@@ -2,31 +2,34 @@
 
 # Also: http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-plugins.html
 
+$szLogstashVersion = "2.3.2"
+$szElasticSearchVersion = "2.3.2"
+
 # Install:
-# - logstach
+# - logstash
 exec { 'install_logstash':
-  creates => '/opt/logstash-1.4.2',
+  creates => "/opt/logstash-$szLogstashVersion",
   path    => [ '/bin', '/usr/bin' ],
-  command => 'cd /opt; tar -zxvf /vagrant/files/logstash/logstash-1.4.2.tar.gz',
+  command => "cd /opt; tar -zxvf /vagrant/files/logstash/logstash-$szLogstashVersion.tar.gz",
 }
 
 file { '/opt/logstash':
   ensure => link,
   require => Exec [ 'install_logstash' ],
-  target  => '/opt/logstash-1.4.2',
+  target  => "/opt/logstash-$szLogstashVersion",
 }
 
 # - elastisearch
 exec { 'install_elastisearch':
-  creates => '/opt/elasticsearch-1.1.1',
+  creates => "/opt/elasticsearch-$szElasticSearchVersion",
   path    => [ '/bin', '/usr/bin' ],
-  command => 'cd /opt; tar -zxvf /vagrant/files/logstash/elasticsearch-1.1.1.tar.gz',
+  command => "cd /opt; tar -zxvf /vagrant/files/logstash/elasticsearch-$szElasticSearchVersion.tar.gz",
 }
 
 file { '/opt/elasticsearch':
   ensure => link,
   require => Exec [ 'install_logstash' ],
-  target  => '/opt/elasticsearch-1.1.1',
+  target  => "/opt/elasticsearch-$szElasticSearchVersion",
 }
 
 file { '/usr/lib/systemd/system/elasticsearch.service':
