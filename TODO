@@ -1,0 +1,5 @@
+TODO - Adress this, max file descriptor thing.
+[2016-05-14 18:39:05,837][WARN ][env                      ] [Tiboro] max file descriptors [4096] for elasticsearch process likely too low, consider increasing to at least [65536]
+A
+A
+
