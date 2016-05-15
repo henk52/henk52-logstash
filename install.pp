@@ -8,6 +8,7 @@ $szElasticSearchVersion = "2.3.2"
 $szElkOwner = "elk"
 $szElkHomeDir = "/home/$szElkOwner"
 
+$szLogstashConfigFile = "$szElkHomeDir/logstash.conf"
 
 if  $osfamily == "Debian" {
   $szElasticsearch='/etc/init.d/elasticsearch'
@@ -87,9 +88,6 @@ file { '/var/lib/elasticsearch':
 }
 
 #              File['/opt/elasticsearch',"$szServiceControlFile",'/opt/elasticsearch/plugins','/opt/elasticsearch/config/scripts','/var/lib/elasticsearch'],
-notify { 't':
-  message => "szServiceControlFile $szServiceControlFile",
-}
 
 
 service { 'elasticsearch':
@@ -260,4 +258,40 @@ file { '/usr/lib/systemd/system/kibana.service':
 #service { 'kibana':
 } # end redhat
 
+# the syslog.conf
 
+# See: http://logstash.net/docs/1.4.2//configuration
+#path => [ \"/var/log/messages\", \"/var/log/*.log\" ]
+#path => \"/data/mysql/mysql.log\"
+file { "$szLogstashConfigFile":
+  ensure => present,
+  content => "#syslog auth.log kern.log
+
+input {
+  file {
+    path => \"/var/log/syslog\"
+    type => \"syslog\"
+  }
+}
+
+filter {
+  if [type] == \"syslog\" {
+    grok {
+      match => { \"message\" => \"%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\\[%{POSINT:syslog_pid}\\])?: %{GREEDYDATA:syslog_message}\" }
+      add_field => [ \"received_at\", \"%{@timestamp}\" ]
+      add_field => [ \"received_from\", \"%{host}\" ]
+    }
+    date {
+      match => [ \"syslog_timestamp\", \"MMM  d HH:mm:ss\", \"MMM dd HH:mm:ss\" ]
+    }
+  }
+}
+
+output {
+  elasticsearch { hosts => [\"localhost:9200\"] }
+  stdout { codec => rubydebug }
+}",
+}
+
+
+# /opt/logstash/bin/logstash -f syslogs.conf  --verbose
