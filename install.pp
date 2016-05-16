@@ -4,14 +4,22 @@
 
 $szLogstashVersion = "2.3.2"
 $szElasticSearchVersion = "2.3.2"
+$szKibanaVersion = "4.5.0"
 
 $szElkOwner = "elk"
 $szElkHomeDir = "/home/$szElkOwner"
 
 $szLogstashConfigFile = "$szElkHomeDir/logstash.conf"
 
+$szTargetBinDir = "/home/$szElkOwner/bin"
+$szTargetEtcDir = "/home/$szElkOwner/etc"
+$szElasticSearchLogDir = "/var/log/elasticsearch"
+$szKibanaLogDir = "/var/log/kibana"
+$szSourceLogstashDir = "/vagrant/logstash"
+
 if  $osfamily == "Debian" {
-  $szElasticsearch='/etc/init.d/elasticsearch'
+  $szElasticsearchService='/etc/init.d/elasticsearch'
+  $szKibanaService='/etc/init.d/kibana'
   $szServiceControlFile = '/etc/init.d/elasticsearch'
   $szPkgPerlPurJson = "libjson-pp-perl"
 } else {
@@ -92,7 +100,7 @@ file { '/var/lib/elasticsearch':
 
 service { 'elasticsearch':
   require => [
-              File['/opt/elasticsearch','/opt/elasticsearch/plugins','/opt/elasticsearch/config/scripts','/var/lib/elasticsearch'],
+              File['/opt/elasticsearch','/opt/elasticsearch/plugins','/opt/elasticsearch/config/scripts','/var/lib/elasticsearch',"$szElasticsearchService"],
               Package["$szPkgJava"],
              ],
   ensure  => running,
@@ -111,6 +119,28 @@ service { 'elasticsearch':
 # - lmenezes/elasticsearch-kopf
 # - redit?
 # - kibana?
+exec { 'install_kibana':
+  creates => "/opt/kibana-$szLogstashVersion",
+  path    => [ '/bin', '/usr/bin' ],
+  command => "tar -zxvf /vagrant/files/elk/kibana-$szKibanaVersion-linux-x64.tar.gz",
+  cwd     => '/opt',
+}
+
+file { '/opt/kibana':
+  ensure => link,
+  require => Exec['install_kibana'],
+  target  => "/opt/kibana-$szKibanaVersion-linux-x64",
+}
+
+service { 'kibana':
+  require => [
+              File['/opt/kibana',"$szKibanaLogDir","$szKibanaService"],
+              Package["$szPkgJava"],
+             ],
+  ensure  => running,
+  enable  => true,
+}
+
 
 # TODO V redit
 # TODO V systemd for each
@@ -128,10 +158,6 @@ package { "$szPkgPerlLibXml":
 
 
 # Install the binaries for log operations.
-$szTargetBinDir = "/home/$szElkOwner/bin"
-$szTargetEtcDir = "/home/$szElkOwner/etc"
-$szElasticSearchLogDir = "/var/log/elasticsearch"
-$szSourceLogstashDir = "/vagrant/logstash"
 
 user { "$szElkOwner":
   ensure     => present,
@@ -154,6 +180,13 @@ file { "$szTargetEtcDir":
 }
 
 file { "$szElasticSearchLogDir":
+  ensure => directory,
+  owner  => "$szElkOwner",
+  group  => "$szElkOwner",
+  require => User["$szElkOwner"],
+}
+
+file { "$szKibanaLogDir":
   ensure => directory,
   owner  => "$szElkOwner",
   group  => "$szElkOwner",
@@ -217,6 +250,76 @@ case \"\$1\" in
     else
         echo 'failed.'
     fi
+    ;;
+  stop)
+    echo -n \"Stopping \$DESC: \"
+    if start-stop-daemon --stop --pidfile \$PID_FILE
+    then
+        echo 'stopped.'
+    else
+        echo 'failed.'
+    fi
+    ;;
+  restart|force-reload)
+    \${0} stop
+    sleep 0.5
+    \${0} start
+    ;;
+  *)
+    N=/etc/init.d/\$NAME
+    echo \"Usage: \$N {start|stop|restart|force-reload}\" >&2
+    exit 1
+    ;;
+esac
+
+exit 0",
+}
+
+file { '/etc/init.d/kibana':
+  ensure  => present,
+  mode    => 555,
+  content => "#! /bin/sh
+# From: https://gist.github.com/andywenk/3569769
+### BEGIN INIT INFO
+# Provides:          kibana
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts kibana
+# Description:       Starts kibana using start-stop-daemon
+### END INIT INFO
+
+KIBANA_HOME=/opt/kibana
+DAEMON=\$KIBANA_HOME/bin/kibana
+NAME=kibana
+DESC=kibana
+PID_FILE=$szElkHomeDir/.\$NAME.pid
+DATA_DIR=/var/lib/\$NAME
+WORK_DIR=/tmp/\$NAME
+DMN_USER=$szElkOwner
+#CONFIG_FILE=/etc/\$NAME/elasticsearch.yml
+DAEMON_OPTS=\"--log-file $szKibanaLogDir/kibana.log\"
+
+
+if [ ! -x \"\$DAEMON\" ]
+then
+  echo \"File '\$DAEMON' is not executable or found\"
+  exit 2
+fi
+
+set -e
+
+case \"\$1\" in
+  start)
+    echo -n \"Starting \$DESC: \"
+    #mkdir -p \$LOG_DIR 
+    #if start-stop-daemon --start --chuid \$DMN_USER --pidfile \$PID_FILE --startas \$DAEMON -- \$DAEMON_OPTS
+    # TODO Prevent it from starting if it has already been started.
+    exec \$DAEMON $DAEMON_OPTS &
+    PROG_PID=\"\$!\"
+    printf \"\$PROG_PID\\n\" >\"\$PID_FILE\"
+    echo \"\$PROG_NAME started with PID: \$PROG_PID\"
     ;;
   stop)
     echo -n \"Stopping \$DESC: \"
