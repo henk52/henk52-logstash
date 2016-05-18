@@ -109,14 +109,6 @@ service { 'elasticsearch':
   enable  => true,
 }
 
-# Logstash depends on elasticsearch.
-#  require => [
-#               File [ '/opt/logstash', '/usr/lib/systemd/system/kibana.service' ],
-#               Service [ 'elasticsearch' ],
-#             ],
-#  ensure  => running,
-#  enable  => true,
-#}
 
 # - lmenezes/elasticsearch-kopf
 # - redit?
@@ -364,7 +356,7 @@ Description=Elasticsearch
 [Service]
 User=$szElkOwner
 Type=simple
-ExecStart=/opt/elasticsearch/bin/elasticsearch -d -p $szElkHomeDir/.elasticsearch.pid -Des.path.home=/opt/elasticsearch -Des.path.logs=$szElasticSearchLogDir -Des.path.data=/var/lib/elasticsearch -Des.path.work=/tmp/elasticsearch
+ExecStart=/opt/elasticsearch/bin/elasticsearch -p $szElkHomeDir/.elasticsearch.pid -Des.path.home=/opt/elasticsearch -Des.path.logs=$szElasticSearchLogDir -Des.path.data=/var/lib/elasticsearch -Des.path.work=/tmp/elasticsearch
 Restart=always
 
 [Install]
