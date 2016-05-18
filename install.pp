@@ -18,18 +18,20 @@ $szKibanaLogDir = "/var/log/kibana"
 $szSourceLogstashDir = "/vagrant/logstash"
 
 if  $osfamily == "Debian" {
+# The debian name.
   $szElasticsearchService='/etc/init.d/elasticsearch'
   $szKibanaService='/etc/init.d/kibana'
   $szServiceControlFile = '/etc/init.d/elasticsearch'
   $szPkgPerlPurJson = "libjson-pp-perl"
+  $szPkgJava = 'openjdk-7-jre-headless'
 } else {
-  $szServiceControlFile = '/usr/lib/systemd/system/elasticsearch.service'
+  $szElasticsearchService='/usr/lib/systemd/system/elasticsearch.service'
+  $szKibanaService='/usr/lib/systemd/system/kibana.service'
   $szPkgPerlPurJson = "perl-JSON-PP"
+  $szPkgJava = 'java-1.8.0-openjdk-headless'
 }
 
 
-# The debian name.
-$szPkgJava = 'openjdk-7-jre-headless'
 
 if  $osfamily == "Debian" {
   $szPkgPerlTextTemplate = "libtext-template-perl"
@@ -199,6 +201,7 @@ file { "/home/$szElkOwner/Readme_logstash.md":
   require => User["$szElkOwner"],
 }
 
+# This guard has to be here so that the file will only be created on Debian.
 if  $osfamily == "Debian" {
 file { '/etc/init.d/elasticsearch':
   ensure  => present,
@@ -316,7 +319,7 @@ case \"\$1\" in
     #mkdir -p \$LOG_DIR 
     #if start-stop-daemon --start --chuid \$DMN_USER --pidfile \$PID_FILE --startas \$DAEMON -- \$DAEMON_OPTS
     # TODO Prevent it from starting if it has already been started.
-    exec \$DAEMON $DAEMON_OPTS &
+    exec \$DAEMON \$DAEMON_OPTS &
     PROG_PID=\"\$!\"
     printf \"\$PROG_PID\\n\" >\"\$PID_FILE\"
     echo \"\$PROG_NAME started with PID: \$PROG_PID\"
@@ -348,17 +351,41 @@ exit 0",
 
 
 # TODO make a var about the Init process, wither it is startup or systemd.
+
 if  $osfamily == "Redhat" {
 file { '/usr/lib/systemd/system/elasticsearch.service':
-  ensure => present,
-  source => '/vagrant/files/logstash/elasticsearch.service',
-}
-file { '/usr/lib/systemd/system/kibana.service':
-  ensure => present,
-  source => '/vagrant/files/logstash/kibana.service',
+  ensure  => present,
+  mode    => "555",
+  content =>"[Unit]
+Description=Elasticsearch
+#ES_MIN_MEM=256m
+#ES_MAX_MEM=2g
+
+[Service]
+User=$szElkOwner
+Type=simple
+ExecStart=/opt/elasticsearch/bin/elasticsearch -d -p $szElkHomeDir/.elasticsearch.pid -Des.path.home=/opt/elasticsearch -Des.path.logs=$szElasticSearchLogDir -Des.path.data=/var/lib/elasticsearch -Des.path.work=/tmp/elasticsearch
+Restart=always
+
+[Install]
+WantedBy=multi-user.target",
 }
 
-#service { 'kibana':
+
+file { '/usr/lib/systemd/system/kibana.service':
+  ensure => present,
+  mode    => "555",
+  content =>"[Unit]
+Description=Kibana
+Wants=elasticsearch.service
+
+[Service]
+Type=simple
+ExecStart=/opt/kibana/bin/kibana --log-file $szKibanaLogDir/kibana.log
+
+[Install]
+WantedBy=multi-user.target",
+}
 } # end redhat
 
 # the syslog.conf
@@ -366,6 +393,7 @@ file { '/usr/lib/systemd/system/kibana.service':
 # See: http://logstash.net/docs/1.4.2//configuration
 #path => [ \"/var/log/messages\", \"/var/log/*.log\" ]
 #path => \"/data/mysql/mysql.log\"
+
 file { "$szLogstashConfigFile":
   ensure => present,
   content => "#syslog auth.log kern.log
