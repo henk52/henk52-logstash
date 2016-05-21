@@ -2,9 +2,9 @@
 
 # Also: http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-plugins.html
 
-$szLogstashVersion = "2.3.2"
-$szElasticSearchVersion = "2.3.2"
-$szKibanaVersion = "4.5.0"
+$szLogstashVersion = "2.3.1"
+$szElasticSearchVersion = "2.3.3"
+$szKibanaVersion = "4.5.1"
 
 $szElkOwner = "elk"
 $szElkHomeDir = "/home/$szElkOwner"
@@ -16,6 +16,13 @@ $szTargetEtcDir = "/home/$szElkOwner/etc"
 $szElasticSearchLogDir = "/var/log/elasticsearch"
 $szKibanaLogDir = "/var/log/kibana"
 $szSourceLogstashDir = "/vagrant/logstash"
+
+if $architecture == "armv6l"  {
+  $szBitness = "x86"
+} else {
+  $szBitness = "x64"
+}
+
 
 if  $osfamily == "Debian" {
 # The debian name.
@@ -50,14 +57,14 @@ if  $osfamily == "Debian" {
 exec { 'install_logstash':
   creates => "/opt/logstash-$szLogstashVersion",
   path    => [ '/bin', '/usr/bin' ],
-  command => "tar -zxvf /vagrant/files/elk/logstash-$szLogstashVersion.tar.gz",
+  command => "tar -zxvf /vagrant/files/elk/logstash-all-plugins-$szLogstashVersion.tar.gz",
   cwd     => '/opt',
 }
 
 file { '/opt/logstash':
   ensure => link,
   require => Exec['install_logstash'],
-  target  => "/opt/logstash-$szLogstashVersion",
+  target  => "/opt/logstash-all-plugins-$szLogstashVersion",
 }
 
 package { "$szPkgJava": ensure => present }
@@ -116,14 +123,14 @@ service { 'elasticsearch':
 exec { 'install_kibana':
   creates => "/opt/kibana-$szLogstashVersion",
   path    => [ '/bin', '/usr/bin' ],
-  command => "tar -zxvf /vagrant/files/elk/kibana-$szKibanaVersion-linux-x64.tar.gz",
+  command => "tar -zxvf /vagrant/files/elk/kibana-$szKibanaVersion-linux-$szBitness.tar.gz",
   cwd     => '/opt',
 }
 
 file { '/opt/kibana':
   ensure => link,
   require => Exec['install_kibana'],
-  target  => "/opt/kibana-$szKibanaVersion-linux-x64",
+  target  => "/opt/kibana-$szKibanaVersion-linux-$szBitness",
 }
 
 service { 'kibana':
