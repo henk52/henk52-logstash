@@ -2,9 +2,9 @@
 
 # Also: http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/modules-plugins.html
 
-$szLogstashVersion = "2.3.1"
-$szElasticSearchVersion = "2.3.3"
-$szKibanaVersion = "4.5.1"
+$szLogstashVersion = "5.0.2"
+$szElasticSearchVersion = "5.0.2"
+$szKibanaVersion = "5.0.2"
 
 $szElkOwner = "elk"
 $szElkHomeDir = "/home/$szElkOwner"
@@ -20,7 +20,7 @@ $szSourceLogstashDir = "/vagrant/logstash"
 if $architecture == "armv6l"  {
   $szBitness = "x86"
 } else {
-  $szBitness = "x64"
+  $szBitness = "x86_64"
 }
 
 
@@ -57,14 +57,16 @@ if  $osfamily == "Debian" {
 exec { 'install_logstash':
   creates => "/opt/logstash-$szLogstashVersion",
   path    => [ '/bin', '/usr/bin' ],
-  command => "tar -zxvf /vagrant/files/elk/logstash-all-plugins-$szLogstashVersion.tar.gz",
+  command => "tar -zxvf /vagrant/files/elk/logstash-$szLogstashVersion.tar.gz",
+#  command => "tar -zxvf /vagrant/files/elk/logstash-all-plugins-$szLogstashVersion.tar.gz",
   cwd     => '/opt',
 }
 
 file { '/opt/logstash':
   ensure => link,
   require => Exec['install_logstash'],
-  target  => "/opt/logstash-all-plugins-$szLogstashVersion",
+  target  => "/opt/logstash-$szLogstashVersion",
+#  target  => "/opt/logstash-all-plugins-$szLogstashVersion",
 }
 
 package { "$szPkgJava": ensure => present }
@@ -106,6 +108,15 @@ file { '/var/lib/elasticsearch':
 
 #              File['/opt/elasticsearch',"$szServiceControlFile",'/opt/elasticsearch/plugins','/opt/elasticsearch/config/scripts','/var/lib/elasticsearch'],
 
+file { '/opt/elasticsearch/config/elasticsearch.yml':
+  ensure => present,
+  owner  => "$szElkOwner",
+  group  => "$szElkOwner",
+  require => [
+               User["$szElkOwner"],
+               File['/opt/elasticsearch'],
+             ],
+}
 
 service { 'elasticsearch':
   require => [
@@ -196,7 +207,8 @@ file { "$szKibanaLogDir":
 
 file { "/home/$szElkOwner/Readme_logstash.md":
   ensure  => present,
-  source  => "$szSourceLogstashDir/README.md",
+#  source  => "$szSourceLogstashDir/README.md",
+  content => "TODO Populate this later, explaning how to use logstash.",
   require => User["$szElkOwner"],
 }
 
@@ -231,7 +243,7 @@ DATA_DIR=/var/lib/\$NAME
 WORK_DIR=/tmp/\$NAME
 DMN_USER=$szElkOwner
 #CONFIG_FILE=/etc/\$NAME/elasticsearch.yml
-DAEMON_OPTS=\"-d -p \$PID_FILE -Des.path.home=\$ES_HOME -Des.path.logs=\$LOG_DIR -Des.path.data=\$DATA_DIR -Des.path.work=\$WORK_DIR\"
+DAEMON_OPTS=\"-d -p \$PID_FILE -Epath.logs=\$LOG_DIR -Epath.data=\$DATA_DIR -Epath.work=\$WORK_DIR\"
 
 
 if [ ! -x \"\$DAEMON\" ]
@@ -363,7 +375,7 @@ Description=Elasticsearch
 [Service]
 User=$szElkOwner
 Type=simple
-ExecStart=/opt/elasticsearch/bin/elasticsearch -p $szElkHomeDir/.elasticsearch.pid -Des.path.home=/opt/elasticsearch -Des.path.logs=$szElasticSearchLogDir -Des.path.data=/var/lib/elasticsearch -Des.path.work=/tmp/elasticsearch
+ExecStart=/opt/elasticsearch/bin/elasticsearch -p $szElkHomeDir/.elasticsearch.pid -Epath.logs=$szElasticSearchLogDir -Epath.data=/var/lib/elasticsearch
 Restart=always
 
 [Install]

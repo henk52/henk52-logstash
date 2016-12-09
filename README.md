@@ -1,6 +1,20 @@
 henk52-logstash
 ===============
 
+# Installation
+See: https://www.elastic.co/guide/en/elasticsearch/reference/5.1/zip-targz.html
+
+1 puppet apply install.pp
+2 chown -R elk /opt/elasticsearch/
+
+Kibana:
+
+/opt/kibana/config/kibana.yml
+server.host: "0.0.0.0"
+
+Get status of Kibana:
+localhost:5601/status
+
 Puppet module for installing logstash
 o
 curl http://localhost:9200/_nodes?pretty
