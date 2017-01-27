@@ -13,6 +13,7 @@ Kibana:
 * server.host: "0.0.0.0"
 
 Get status of Kibana:
+
 1. localhost:5601/status
 
 Puppet module for installing logstash
